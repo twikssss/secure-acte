@@ -3,229 +3,271 @@ import streamlit as st
 from google import genai
 from google.genai import types
 
-# Bibliothèques pour la génération du PDF
+# Bibliothèques pour le rapport PDF
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # -----------------------------------------------------------------------------
-# CONFIGURATION DE LA PAGE
+# CONFIGURATION DE LA PAGE & DESIGN SOMBRE MINIMALISTE (Style ChatGPT/Gemini)
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="SécureActe Pro - Audit Notarial Bionique",
+    page_title="SécureActe Studio",
     page_icon="⚖️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
+# Style CSS sur-mesure : Design épuré Monochrome Noir / Gris / Blanc
 st.markdown("""
     <style>
-    .main-title { font-size: 2.3rem; color: #1E3A8A; font-weight: 800; }
-    .sub-title { font-size: 1rem; color: #4B5563; margin-bottom: 20px; }
-    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
+    /* Fond principal sombre et moderne */
+    .stApp {
+        background-color: #0d0d11;
+        color: #e3e3e8;
+        font-family: 'Inter', -apple-system, sans-serif;
+    }
+    
+    /* En-tête sobre */
+    .title-container {
+        padding: 20px 0px 10px 0px;
+        text-align: center;
+    }
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: #ffffff;
+    }
+    .sub-title {
+        font-size: 0.95rem;
+        color: #8e8e93;
+        margin-top: -5px;
+    }
+    
+    /* Boutons de prompt rapide (style puces ChatGPT/Gemini) */
+    .stButton>button {
+        background-color: #1a1a22 !important;
+        color: #e3e3e8 !important;
+        border: 1px solid #2e2e38 !important;
+        border-radius: 12px !important;
+        padding: 10px 16px !important;
+        font-size: 0.88rem !important;
+        transition: all 0.2s ease;
+    }
+    .stButton>button:hover {
+        background-color: #2a2a35 !important;
+        border-color: #ffffff !important;
+        color: #ffffff !important;
+    }
+    
+    /* Zones de dépôt de fichiers */
+    [data-testid="stFileUploader"] {
+        background-color: #14141a;
+        border: 1px dashed #2e2e38;
+        border-radius: 12px;
+        padding: 15px;
+    }
+    
+    /* Enregistreur vocal & Inputs */
+    [data-testid="stAudioInput"] {
+        background-color: #14141a;
+        border-radius: 12px;
+        border: 1px solid #2e2e38;
+    }
+    
+    /* Cartes et conteneurs */
+    .result-card {
+        background-color: #14141a;
+        border: 1px solid #2e2e38;
+        border-radius: 16px;
+        padding: 25px;
+        margin-top: 20px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="main-title">⚖️ SécureActe Pro</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Audit juridique automatique & contrôle de conformité multi-pièces</p>', unsafe_allow_html=True)
-st.markdown("---")
-
 # -----------------------------------------------------------------------------
-# FONCTION DE GÉNÉRATION DU RAPPORT PDF
+# GENERATION DE RAPPORT PDF
 # -----------------------------------------------------------------------------
 def generate_pdf_report(report_text: str) -> io.BytesIO:
-    """Transforme le texte du rapport en un document PDF professionnel."""
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=40,
-        leftMargin=40,
-        topMargin=40,
-        bottomMargin=40
-    )
-    
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
     
-    # Styles personnalisés pour le document PDF
-    title_style = ParagraphStyle(
-        'DocTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#1E3A8A'),
-        spaceAfter=10
-    )
-    
-    h2_style = ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Heading2'],
-        fontSize=13,
-        textColor=colors.HexColor('#1E3A8A'),
-        spaceBefore=12,
-        spaceAfter=6
-    )
-    
-    body_style = ParagraphStyle(
-        'Body',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        textColor=colors.HexColor('#1F2937'),
-        spaceAfter=6
-    )
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#000000'), spaceAfter=10)
+    h2_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor('#1a1a1a'), spaceBefore=10, spaceAfter=4)
+    body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=9.5, leading=13, textColor=colors.HexColor('#2b2b2b'), spaceAfter=5)
 
-    story = []
+    story = [Paragraph("<b>RAPPORT D'AUDIT JURIDIQUE SÉCUREACTE STUDIO</b>", title_style)]
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#000000'), spaceAfter=12))
     
-    # En-tête du PDF
-    story.append(Paragraph("<b>SÉCUREACTE PRO — RAPPORT D'AUDIT NOTARIAL</b>", title_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#1E3A8A'), spaceAfter=15))
-    
-    # Conversion du texte Markdown simple en paragraphes PDF
-    lines = report_text.split('\n')
-    for line in lines:
-        clean_line = line.strip().replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        
-        if not clean_line:
-            continue
-            
-        if clean_line.startswith('# '):
-            story.append(Paragraph(f"<b>{clean_line[2:]}</b>", h2_style))
-        elif clean_line.startswith('## ') or clean_line.startswith('### '):
-            text_head = clean_line.lstrip('#').strip()
-            story.append(Paragraph(f"<b>{text_head}</b>", h2_style))
-        elif clean_line.startswith('- ') or clean_line.startswith('* '):
-            story.append(Paragraph(f"• {clean_line[2:]}", body_style))
-        else:
-            story.append(Paragraph(clean_line, body_style))
+    for line in report_text.split('\n'):
+        clean = line.strip().replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        if not clean: continue
+        if clean.startswith('# '): story.append(Paragraph(f"<b>{clean[2:]}</b>", h2_style))
+        elif clean.startswith('## ') or clean.startswith('### '): story.append(Paragraph(f"<b>{clean.lstrip('#').strip()}</b>", h2_style))
+        elif clean.startswith('- ') or clean.startswith('* '): story.append(Paragraph(f"• {clean[2:]}", body_style))
+        else: story.append(Paragraph(clean, body_style))
             
     doc.build(story)
     buffer.seek(0)
     return buffer
 
 # -----------------------------------------------------------------------------
-# GESTION DE LA CLÉ API
+# INITIALISATION DE L'API GEMINI
 # -----------------------------------------------------------------------------
 api_key = st.secrets.get("GEMINI_API_KEY")
-
 if not api_key:
     with st.sidebar:
-        st.header("🔑 Configuration")
         api_key = st.text_input("Clé API Gemini :", type="password")
 
 if not api_key:
-    st.info("👈 Veuillez configurer votre clé API Gemini dans le menu latéral ou dans les Secrets Streamlit pour commencer.")
+    st.info("💡 Veuillez configurer votre clé API Gemini dans les Secrets de Streamlit pour débloquer le Studio.")
     st.stop()
 
 client = genai.Client(api_key=api_key)
 
 # -----------------------------------------------------------------------------
-# INTERFACE SÉLECTION DES DOCUMENTS
+# EN-TÊTE
 # -----------------------------------------------------------------------------
-col_left, col_right = st.columns([1, 1])
-
-with col_left:
-    st.subheader("📂 1. Dossier de Référence (Pièces Officielle)")
-    docs_ref = st.file_uploader(
-        "Déposez les pièces justificatives (Cadastre, CNI, KBIS...)",
-        type=["pdf", "png", "jpg", "jpeg"],
-        accept_multiple_files=True,
-        key="docs_ref"
-    )
-
-with col_right:
-    st.subheader("📄 2. Projet d'Acte à Vérifier")
-    doc_acte = st.file_uploader(
-        "Déposez le projet d'acte rédigé (Word/PDF)",
-        type=["pdf", "png", "jpg", "jpeg"],
-        key="doc_acte"
-    )
+st.markdown("""
+    <div class="title-container">
+        <div class="main-title">SécureActe Studio</div>
+        <div class="sub-title">Assistant notarial multimodal : PDF, Photos, Audio Vocal & Analyse Texte</div>
+    </div>
+""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# CHECKLIST & PARAMÈTRES JURIDIQUES
+# IDÉES DE PROMPTS RAPIDES (Style ChatGPT / Gemini)
 # -----------------------------------------------------------------------------
-st.markdown("### 🎯 Périmètre de l'Audit")
-c1, c2, c3 = st.columns(3)
+st.markdown("##### 💡 Suggestions d'analyse rapide")
+p_col1, p_col2, p_col3, p_col4 = st.columns(4)
 
-with c1:
-    check_etat_civil = st.checkbox("État civil & Matrimonial", value=True)
-    check_cadastre = st.checkbox("Désignation Cadastrale", value=True)
-with c2:
-    check_prix = st.checkbox("Prix & Financement", value=True)
-    check_servitudes = st.checkbox("Servitudes & Urbanisme", value=False)
-with c3:
-    check_typo = st.checkbox("Coquilles / Inversions de chiffres", value=True)
+selected_prompt_preset = ""
 
+if p_col1.button("🔍 Audit Cadastre vs Acte"):
+    selected_prompt_preset = "Effectue une comparaison ultra-rigoureuse entre la désignation cadastrale des pièces officielles et du projet d'acte."
+
+if p_col2.button("👤 Contrôle CNI & Identités"):
+    selected_prompt_preset = "Vérifie l'état civil complet (noms, prénoms, dates et lieux de naissance, régimes) entre les pièces justificatives et l'acte."
+
+if p_col3.button("🚨 Détection des Coquilles"):
+    selected_prompt_preset = "Repère toutes les coquilles typographiques, erreurs d'inversion de chiffres, ou fautes de frappe dans les documents."
+
+if p_col4.button("💬 Résumé Exécutif Client"):
+    selected_prompt_preset = "Rédige une note de synthèse claire, courtoise et professionnelle destinée au notaire et à son client."
+
+# -----------------------------------------------------------------------------
+# ENTRÉES MULTIMODALES (PDF, PHOTOS, VOCAL, TEXTE)
+# -----------------------------------------------------------------------------
 st.markdown("---")
 
+col_files, col_input = st.columns([1, 1])
+
+with col_files:
+    st.markdown("##### 📂 Documents, Scans & Photos")
+    uploaded_files = st.file_uploader(
+        "Glissez tous vos fichiers (PDF, Photos PNG/JPG, CNI, Plan Cadastral...)",
+        type=["pdf", "png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=True
+    )
+
+with col_input:
+    st.markdown("##### 🎙️ Consigne Vocale & Instructions")
+    
+    # Composant Enregistreur Vocal Interactif
+    audio_record = st.audio_input("Enregistrer une consigne vocale à la voix")
+    
+    # Zone de texte libre
+    user_text_prompt = st.text_area(
+        "Ou saisissez vos consignes écrites :",
+        value=selected_prompt_preset if selected_prompt_preset else "",
+        placeholder="Posez votre question ou décrivez ce que l'IA doit vérifier...",
+        height=100
+    )
+
 # -----------------------------------------------------------------------------
-# EXECUTION ET AFFICHAGE
+# TRAITEMENT & EXECUTION PAR L'IA MULTIMODALE
 # -----------------------------------------------------------------------------
-if st.button("🚀 Lancer l'Audit & Générer le PDF", type="primary"):
-    if docs_ref and doc_acte:
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("✨ Lancer l'analyse multimodale Studio", type="primary", use_container_width=True):
+    
+    if not uploaded_files and not user_text_prompt and not audio_record:
+        st.warning("⚠️ Veuillez déposer un document, enregistrer un message vocal ou saisir un texte.")
+    else:
         try:
-            with st.spinner("🧠 Analyse en cours par Gemini 2.5 Flash..."):
-                contents_payload = []
+            with st.spinner("🧠 SécureActe Studio analyse vos données..."):
+                payload = []
                 
-                prompt_consignes = f"""
-                Tu es un clerc de notaire senior ultra-rigoureux.
-                Compare les DOCUMENTS DE RÉFÉRENCE au PROJET D'ACTE.
+                # Directive système
+                system_instruction = """
+                Tu es SécureActe Studio, l'assistant d'IA juridique notarial le plus avancé.
+                Examine avec une précision chirurgicale tous les éléments transmis (PDFs, images/photos, messages vocaux, instructions écrites).
 
-                POINTS D'INSPECTION :
-                - État civil : {check_etat_civil}
-                - Cadastre : {check_cadastre}
-                - Prix : {check_prix}
-                - Servitudes : {check_servitudes}
-                - Coquilles : {check_typo}
+                Si un message vocal ou du texte est fourni, réponds précisément à la demande exprimée.
+                Si des documents/photos sont joints, effectue une vérification de conformité globale.
 
-                FORMAT DE RESTITUTION EXIGÉ :
-                # BILAN GLOBAL DE CONFORMITÉ
-                (Verdict : CONFORME / ATTENTION REQUISE / ANOMALIE CRITIQUE)
-
-                # ANOMALIES & DIVERGENCES DÉTECTÉES
-                - Liste claire de chaque divergence trouvée avec sa gravité.
-
-                # ÉLÉMENTS CONFORMES
-                - Liste des points validés.
-
-                # ACTIONS CORRECTIVES POUR LE CLERC
-                - Corrections exactes à effectuer.
+                Structure toujours ton rapport de manière lisible :
+                # 🚦 VERDICT GLOBAL
+                # 🚨 POINTS D'ATTENTION & ANOMALIES
+                # ✅ ÉLÉMENTS VALIDÉS ET CONFORMES
+                # 📝 RECOMMANDATIONS DIRECTES POUR LE CLERC
                 """
-                contents_payload.append(prompt_consignes)
+                payload.append(system_instruction)
 
-                for doc in docs_ref:
-                    part = types.Part.from_bytes(data=doc.read(), mime_type=doc.type)
-                    contents_payload.append(f"Pièce officielle ({doc.name}) :")
-                    contents_payload.append(part)
+                # Ajout des fichiers audio vocaux
+                if audio_record:
+                    audio_part = types.Part.from_bytes(
+                        data=audio_record.read(),
+                        mime_type=audio_record.type or "audio/wav"
+                    )
+                    payload.append("Voici la consigne vocale enregistrée par l'utilisateur :")
+                    payload.append(audio_part)
 
-                part_acte = types.Part.from_bytes(data=doc_acte.read(), mime_type=doc_acte.type)
-                contents_payload.append(f"Projet d'acte ({doc_acte.name}) :")
-                contents_payload.append(part_acte)
+                # Ajout des images et PDF
+                if uploaded_files:
+                    payload.append("\nVoici les pièces justificatives et documents joints :")
+                    for file in uploaded_files:
+                        file_part = types.Part.from_bytes(
+                            data=file.read(),
+                            mime_type=file.type
+                        )
+                        payload.append(f"Fichier joint ({file.name}) :")
+                        payload.append(file_part)
 
+                # Ajout de la consigne textuelle
+                if user_text_prompt:
+                    payload.append(f"\nConsigne écrite de l'utilisateur : {user_text_prompt}")
+
+                # Exécution Gemini 2.5 Flash
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
-                    contents=contents_payload
+                    contents=payload
                 )
 
-            # Stockage du résultat dans la session
-            st.session_state['report_text'] = response.text
-            st.success("Audit terminé avec succès !")
+            # Stockage de la réponse
+            st.session_state['studio_response'] = response.text
+            st.success("Analyse terminée !")
 
         except Exception as e:
             st.error(f"Erreur technique : {str(e)}")
-    else:
-        st.warning("⚠️ Veuillez déposer au moins une pièce de référence et le projet d'acte.")
 
-# Si un rapport a été généré, on l'affiche et on propose le téléchargement
-if 'report_text' in st.session_state:
-    st.markdown("### 📊 Rapport d'Audit")
-    st.markdown(st.session_state['report_text'])
+# -----------------------------------------------------------------------------
+# AFFICHAGE DU RÉSULTAT
+# -----------------------------------------------------------------------------
+if 'studio_response' in st.session_state:
+    st.markdown("---")
+    st.markdown("### 📊 Rapport d'Analyse Studio")
+    st.markdown(st.session_state['studio_response'])
     
-    # Génération du fichier PDF
-    pdf_bytes = generate_pdf_report(st.session_state['report_text'])
+    st.markdown("<br>", unsafe_allow_html=True)
+    pdf_bytes = generate_pdf_report(st.session_state['studio_response'])
     
     st.download_button(
-        label="📄 Télécharger le Rapport Officiel (Format PDF)",
+        label="📄 Imprimer le Rapport Officiel (PDF)",
         data=pdf_bytes,
-        file_name="Rapport_Audit_Notarial_SecureActe.pdf",
+        file_name="Rapport_Studio_SecureActe.pdf",
         mime="application/pdf"
     )
